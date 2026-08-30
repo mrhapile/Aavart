@@ -56,7 +56,7 @@ export function ExpandedMapModal({
 
         <div className="expanded-scroll-area">
           <div className="expanded-map-wrap">
-            <CorridorMap sections={sections} activeSectionId={activeSectionId} />
+            <CorridorMap sections={sections} activeSectionId={activeSectionId} size="tall" />
           </div>
 
           {sections.length === 0 ? (

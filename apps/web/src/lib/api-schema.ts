@@ -45,7 +45,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Planning Runs
+         * @description Archive of every persisted run, newest first.
+         */
+        get: operations["list_planning_runs_planning_runs_get"];
         put?: never;
         /** Create Planning Run */
         post: operations["create_planning_run_planning_runs_post"];
@@ -134,6 +138,57 @@ export interface paths {
         put?: never;
         /** Replan */
         post: operations["replan_planning_runs__run_id__replan_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/railradar/trains/{train_number}/live": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Live */
+        get: operations["live_railradar_trains__train_number__live_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/railradar/trains/{train_number}/route": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Route */
+        get: operations["route_railradar_trains__train_number__route_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/railradar/trains/{train_number}/timetable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Timetable */
+        get: operations["timetable_railradar_trains__train_number__timetable_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -305,14 +360,20 @@ export interface components {
         };
         /** JobContext */
         JobContext: {
+            /** Allowed Windows */
+            allowed_windows: string[];
             /** Asset Id */
             asset_id: string;
             /** Department */
             department: string;
+            /** Duration Minutes */
+            duration_minutes: number;
             /** Job Id */
             job_id: string;
             /** Priority */
             priority: number;
+            /** Required Resources */
+            required_resources: string[];
             /** Section Id */
             section_id: string;
             /** Work Type */
@@ -427,6 +488,41 @@ export interface components {
          * @enum {string}
          */
         PlanningRunState: "QUEUED" | "RUNNING" | "FEASIBLE" | "OPTIMAL" | "INFEASIBLE" | "TIMEOUT" | "INVALID" | "FAILED";
+        /**
+         * PlanningRunSummary
+         * @description Lightweight archive row for GET /planning-runs.
+         *
+         *     Deliberately excludes schedule_items/jobs/ai_estimates so listing the
+         *     archive does not stream every job of every historical run.
+         */
+        PlanningRunSummary: {
+            approval?: components["schemas"]["ApprovalSummary"] | null;
+            /** Completed At */
+            completed_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            kpis?: components["schemas"]["KpiSummary"] | null;
+            /** Parent Run Id */
+            parent_run_id?: string | null;
+            /** Ruleset Version */
+            ruleset_version: string;
+            /** Run Id */
+            run_id: string;
+            /** Scheduled Job Count */
+            scheduled_job_count: number;
+            /** Snapshot Id */
+            snapshot_id: string;
+            state: components["schemas"]["PlanningRunState"];
+            /** Total Job Count */
+            total_job_count: number;
+            /** Trigger Type */
+            trigger_type: string;
+            /** Validator Passed */
+            validator_passed: boolean;
+        };
         /** RapidBlockDetail */
         RapidBlockDetail: {
             /** Actor */
@@ -610,13 +706,7 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -625,15 +715,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DatasetValidationResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -656,6 +737,26 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+        };
+    };
+    list_planning_runs_planning_runs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanningRunSummary"][];
                 };
             };
         };
@@ -847,6 +948,110 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlanningRunCreatedResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    live_railradar_trains__train_number__live_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                train_number: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    route_railradar_trains__train_number__route_get: {
+        parameters: {
+            query?: {
+                format?: string;
+                stops?: boolean;
+            };
+            header?: never;
+            path: {
+                train_number: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    timetable_railradar_trains__train_number__timetable_get: {
+        parameters: {
+            query?: {
+                halts_only?: boolean;
+            };
+            header?: never;
+            path: {
+                train_number: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

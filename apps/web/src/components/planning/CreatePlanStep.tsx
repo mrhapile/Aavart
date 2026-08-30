@@ -38,53 +38,45 @@ export function CreatePlanStep({
 
   // The solve is a mount-once pipeline. onTriggerSolve/onPlanReady are re-created
   // by the parent on every render, and onTriggerSolve itself sets parent state, so
-  // without this guard the effect re-fires forever and floods the API with runs.
+  // without this guard the effect re-fires and floods the API with runs.
+  //
+  // Deliberately NOT cancelled from the effect cleanup: React's dev StrictMode
+  // mounts -> cleans up -> remounts, and the remount is short-circuited by this
+  // guard. A cleanup-scoped `cancelled` flag would therefore be latched on by the
+  // first (discarded) pass and permanently swallow the real solver result, leaving
+  // the screen stuck at 8%. Abort is owned by the parent instead: cancelling
+  // navigates away and makes onTriggerSolve() resolve false.
   const hasSolvedRef = useRef(false);
 
   useEffect(() => {
     if (hasSolvedRef.current) return;
     hasSolvedRef.current = true;
 
-    let cancelled = false;
+    // Purely a "still working" visual heartbeat while the real solve call is in
+    // flight - it never marks the plan complete on its own; only the real
+    // onTriggerSolve() result below does that.
+    const heartbeat = setInterval(() => {
+      setCurrentStepIndex((idx) => Math.min(idx + 1, 3));
+      setProgressPercent((p) => Math.min(p + 12, 88));
+    }, 1200);
 
-    async function runOptimization() {
-      // Purely a "still working" visual heartbeat while the real solve call
-      // is in flight - it never marks the plan complete on its own; only the
-      // real onTriggerSolve() result below does that.
-      const heartbeat = setInterval(() => {
-        if (cancelled) return;
-        setCurrentStepIndex((idx) => Math.min(idx + 1, 3));
-        setProgressPercent((p) => Math.min(p + 20, 85));
-      }, 1500);
-
-      try {
-        const success = await onTriggerSolve();
-        clearInterval(heartbeat);
-        if (!cancelled) {
-          if (success) {
-            setCurrentStepIndex(5);
-            setProgressPercent(100);
-            setIsCompleted(true);
-            setTimeout(() => {
-              if (!cancelled) onPlanReady();
-            }, 400);
-          } else {
-            setError("Solver failed to compute a conflict-free schedule.");
-          }
+    onTriggerSolve()
+      .then((success) => {
+        if (success) {
+          setCurrentStepIndex(5);
+          setProgressPercent(100);
+          setIsCompleted(true);
+          setTimeout(onPlanReady, 400);
+        } else {
+          setError("Solver failed to compute a conflict-free schedule.");
         }
-      } catch (err) {
+      })
+      .catch((err) => {
+        setError(errorMessage(err) || "Optimization engine unavailable.");
+      })
+      .finally(() => {
         clearInterval(heartbeat);
-        if (!cancelled) {
-          setError(errorMessage(err) || "Optimization engine unavailable.");
-        }
-      }
-    }
-
-    runOptimization();
-
-    return () => {
-      cancelled = true;
-    };
+      });
   }, [onTriggerSolve, onPlanReady]);
 
   return (

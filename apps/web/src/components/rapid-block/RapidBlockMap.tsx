@@ -41,6 +41,7 @@ export function RapidBlockMap({ impact, selectedSectionId, sections }: RapidBloc
           activeSectionId={hasImpact ? null : activeSection}
           incidentSectionId={hasImpact ? activeSection : null}
           incidentLabel={incidentLabel}
+          size="tall"
         />
       </div>
 

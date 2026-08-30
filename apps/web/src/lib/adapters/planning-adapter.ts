@@ -8,15 +8,19 @@ import {
   getApiHealth,
   getPlanningRun,
   getRapidBlockRequest,
+  listPlanningRuns,
   lockScheduleItem,
   replanRun,
   validateDataset,
+  type PlanningRunSummary,
   type RunDetail,
   type ValidationResponse,
 } from "@/lib/api";
+import { CORRIDOR_PRESETS } from "@/lib/corridor-presets";
 import {
   DepartmentType,
   JobDetailView,
+  PlanArchiveEntry,
   PlanRunView,
   RapidBlockFormValues,
   RapidBlockImpactView,
@@ -95,12 +99,34 @@ export function mapBackendRunToView(run: RunDetail): PlanRunView {
   // data at all - only section_id is known (via each job). Report only what
   // is real (the section id and its real job count); everything else is
   // left unset so the UI can render "unknown" rather than an invented value.
+  // We reconstruct from_node/to_node by checking the known presets.
   const uniqueSections = Array.from(new Set(run.jobs.map((j) => j.section_id)));
-  const sections = uniqueSections.map((secId) => ({
-    section_id: secId,
-    name: secId,
-    total_works: run.jobs.filter((j) => j.section_id === secId).length,
-  }));
+  const sections = uniqueSections.map((secId) => {
+    let from_node: string | undefined;
+    let to_node: string | undefined;
+    let name: string = secId;
+
+    for (const preset of CORRIDOR_PRESETS) {
+      const presetSections = preset.dataset?.sections as Array<{ section_id: string; from_node?: string; to_node?: string; name?: string }> | undefined;
+      if (presetSections) {
+        const found = presetSections.find((s) => s.section_id === secId);
+        if (found) {
+          from_node = found.from_node;
+          to_node = found.to_node;
+          if (found.name) name = found.name;
+          break;
+        }
+      }
+    }
+
+    return {
+      section_id: secId,
+      name,
+      from_node,
+      to_node,
+      total_works: run.jobs.filter((j) => j.section_id === secId).length,
+    };
+  });
 
   const closureReduction = run.kpis.baseline_closure_minutes > 0
     ? ((run.kpis.baseline_closure_minutes - run.kpis.optimized_closure_minutes) / run.kpis.baseline_closure_minutes) * 100
@@ -134,6 +160,24 @@ export function mapBackendRunToView(run: RunDetail): PlanRunView {
     changes: run.changes,
     validator: run.validator,
     approval: run.approval,
+  };
+}
+
+export function mapBackendSummaryToArchiveEntry(summary: PlanningRunSummary): PlanArchiveEntry {
+  return {
+    runId: summary.run_id,
+    snapshotId: summary.snapshot_id,
+    plannedAt: summary.completed_at ?? summary.created_at,
+    state: summary.state,
+    approvedBy: summary.approval?.reviewer ?? null,
+    approvedAt: summary.approval?.approved_at ?? null,
+    totalJobCount: summary.total_job_count,
+    scheduledJobCount: summary.scheduled_job_count,
+    validatorPassed: summary.validator_passed,
+    // Runs persisted before KPIs were recorded carry no kpis block - report
+    // that as unknown rather than as a 0% gain.
+    downtimeReductionPercent: summary.kpis?.downtime_reduction_percent ?? null,
+    triggerType: summary.trigger_type,
   };
 }
 
@@ -187,6 +231,26 @@ export async function createPlanningRunAdapter(snapshotId: string): Promise<Plan
     return mapBackendRunToView(detail);
   } catch (err) {
     throw toApiError(err, "Could not create a planning run.");
+  }
+}
+
+/** Loads the archive of every persisted run for the Previous Plans screen. */
+export async function listPlanningRunsAdapter(): Promise<PlanArchiveEntry[]> {
+  try {
+    const runs = await listPlanningRuns();
+    return runs.map(mapBackendSummaryToArchiveEntry);
+  } catch (err) {
+    throw toApiError(err, "Could not load past planning runs.");
+  }
+}
+
+/** Loads one historical run in full, for read-only review. */
+export async function fetchPlanningRunAdapter(runId: string): Promise<PlanRunView> {
+  try {
+    const detail = await getPlanningRun(runId);
+    return mapBackendRunToView(detail);
+  } catch (err) {
+    throw toApiError(err, `Could not load planning run ${runId}.`);
   }
 }
 

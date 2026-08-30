@@ -21,6 +21,7 @@ from railniyojan.contracts.api import (
     PlanningRunCreatedResponse,
     PlanningRunCreateRequest,
     PlanningRunDetail,
+    PlanningRunSummary,
     ReplanRequest,
     UnscheduledJob,
     ValidatorSummary,
@@ -37,6 +38,7 @@ from railniyojan.planning.store import (
     ExportRecord,
     PlanningStore,
     RunRecord,
+    RunSummaryRecord,
     SnapshotRecord,
     planning_store,
 )
@@ -175,6 +177,24 @@ def _detail(run: RunRecord) -> PlanningRunDetail:
     )
 
 
+def _summary(record: RunSummaryRecord) -> PlanningRunSummary:
+    return PlanningRunSummary(
+        run_id=record.run_id,
+        state=record.state,
+        snapshot_id=record.snapshot_id,
+        ruleset_version=record.ruleset_version,
+        created_at=record.created_at,
+        completed_at=record.completed_at,
+        parent_run_id=record.parent_run_id,
+        trigger_type=record.trigger_type,
+        total_job_count=record.total_job_count,
+        scheduled_job_count=record.scheduled_job_count,
+        validator_passed=record.validator_passed,
+        approval=record.approval,
+        kpis=record.kpis,
+    )
+
+
 def _audit(
     entity_type: str, entity_id: str, event_type: str, actor: str, **metadata: object
 ) -> None:
@@ -198,6 +218,12 @@ def create_planning_run(request: PlanningRunCreateRequest) -> PlanningRunCreated
     if request.ruleset_version != RULESET_VERSION:
         raise ApiError(400, "INVALID_INPUT", f"ruleset_version must be {RULESET_VERSION}")
     return _created(_execute_run(snapshot, request.ruleset_version))
+
+
+@router.get("", response_model=list[PlanningRunSummary])
+def list_planning_runs() -> list[PlanningRunSummary]:
+    """Archive of every persisted run, newest first."""
+    return [_summary(record) for record in cast(PlanningStore, planning_store).list_runs()]
 
 
 @router.get("/{run_id}", response_model=PlanningRunDetail)

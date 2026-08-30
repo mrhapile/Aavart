@@ -331,6 +331,39 @@ def test_rapidblock_rejects_true_locked_conflict(baseline_payload: dict[str, Any
     assert response.json()["code"] == "LOCK_CONFLICT"
 
 
+def test_list_planning_runs_returns_newest_first_archive_rows(
+    baseline_payload: dict[str, Any],
+) -> None:
+    assert client.get("/planning-runs").json() == []
+
+    first_run_id, snapshot_id = _create_run(baseline_payload)
+    second_run_id, _ = _create_run(baseline_payload)
+    client.post(
+        f"/planning-runs/{second_run_id}/approve",
+        json={"reviewer": "akash", "comment": "Reviewed validator and schedule"},
+    )
+
+    response = client.get("/planning-runs")
+    body = response.json()
+
+    assert response.status_code == 200
+    assert [row["run_id"] for row in body] == [second_run_id, first_run_id]
+    approved, unapproved = body
+    assert approved["snapshot_id"] == snapshot_id
+    assert approved["state"] == "OPTIMAL"
+    assert approved["validator_passed"] is True
+    assert approved["approval"]["reviewer"] == "akash"
+    assert approved["total_job_count"] == 4
+    assert approved["scheduled_job_count"] == len(
+        client.get(f"/planning-runs/{second_run_id}").json()["schedule_items"]
+    )
+    assert approved["kpis"]["downtime_reduction_minutes"] >= 0
+    assert unapproved["approval"] is None
+    # The archive row must stay lightweight - no per-job payloads.
+    assert "schedule_items" not in approved
+    assert "jobs" not in approved
+
+
 def test_sql_store_survives_reload_for_snapshot_run_approval_export_and_audit(
     baseline_payload: dict[str, Any],
 ) -> None:
@@ -391,3 +424,12 @@ def test_sql_store_survives_reload_for_snapshot_run_approval_export_and_audit(
     assert reloaded_rapidblock.state == "CANDIDATE_READY"
     assert reloaded.list_exports()[0].run_id == run_id
     assert {event.event_type for event in reloaded.list_audit_events()} >= {"APPROVED", "EXPORTED"}
+
+    listed = reloaded.list_runs()
+    assert {summary.run_id for summary in listed} == {run_id, child_run.run_id}
+    baseline_summary = next(summary for summary in listed if summary.run_id == run_id)
+    assert baseline_summary.approval is not None
+    assert baseline_summary.validator_passed is True
+    assert baseline_summary.total_job_count == len(run.changes)
+    assert baseline_summary.scheduled_job_count == len(run.schedule_items)
+    assert baseline_summary.kpis is not None

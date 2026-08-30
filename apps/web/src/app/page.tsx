@@ -2,17 +2,21 @@
 
 import { useCallback, useRef, useState } from "react";
 import {
+  CorridorPresetId,
   DepartmentDataSource,
   OptimizationStatus,
   PlanRunView,
   ToastMessage,
   ValidationState,
 } from "@/types";
-import { demoHistoricalPlan, initialDepartmentSources } from "@/lib/mock-data";
+import { getDepartmentSources, initialDepartmentSources } from "@/lib/mock-data";
+import { getPreset } from "@/lib/corridor-presets";
+import { buildDatasetPayload } from "@/lib/dataset-builder";
 import {
   approveRunAdapter,
   createPlanningRunAdapter,
   exportRunAdapter,
+  fetchPlanningRunAdapter,
   lockScheduleItemAdapter,
   replanRunAdapter,
   validateDatasetAdapter,
@@ -31,6 +35,9 @@ import { PlanApprovedScreen } from "@/components/approved/PlanApprovedScreen";
 import { PreviousPlansList } from "@/components/previous-plans/PreviousPlansList";
 import { RapidBlockView } from "@/components/rapid-block/RapidBlockView";
 
+/** Corridor that Step 1 opens on. */
+const DEFAULT_CORRIDOR_ID: CorridorPresetId = "corridor-c1";
+
 const EMPTY_VALIDATION_STATE: ValidationState = {
   valid: false,
   snapshotCandidateId: null,
@@ -43,16 +50,32 @@ export default function RailNiyojanApp() {
   // Back button moves between screens instead of leaving the app.
   const { currentView, navigate: setCurrentView, goBack, canGoBack } = useViewHistory("home");
 
-  // Ingestion & Validation State
-  const [sources, setSources] = useState<DepartmentDataSource[]>(initialDepartmentSources);
+  // Ingestion & Validation State.
+  // Seeded from the corridor that Step 1 opens pre-selected (C1 / Narmada), so
+  // the per-department task counts and the "Total Maintenance Load" figure match
+  // the dataset that will actually be posted to /datasets/validate. Seeding from
+  // the baseline fixture instead showed "4 Jobs" for a 90-job corridor.
+  const [sources, setSources] = useState<DepartmentDataSource[]>(() => {
+    const initial = getPreset(DEFAULT_CORRIDOR_ID);
+    return initial.dataset
+      ? getDepartmentSources(initial.dataset, initial.label)
+      : initialDepartmentSources;
+  });
   const [validation, setValidation] = useState<ValidationState>(EMPTY_VALIDATION_STATE);
+
+  // Corridor selection — Step 1 selector.
+  // Initialise to C1 (Narmada) so the user can click straight through.
+  const [selectedCorridorId, setSelectedCorridorId] = useState<CorridorPresetId>(DEFAULT_CORRIDOR_ID);
+  // Base dataset for the "custom" preset — only set when the user uploads a file.
+  const [customBaseDataset, setCustomBaseDataset] = useState<Record<string, unknown> | null>(null);
 
   // Active Planning Run State - null until a real plan actually exists.
   const [plan, setPlan] = useState<PlanRunView | null>(null);
   const [hasPlanCreated, setHasPlanCreated] = useState(false);
-  // Whether the currently-open plan is the out-of-scope "Previous Plans" demo
-  // path rather than a real backend run (no list-runs endpoint exists yet).
-  const [isDemoPlan, setIsDemoPlan] = useState(false);
+  // Whether the currently-open plan was opened from the archive (Previous
+  // Plans) rather than created in this session - it is a real backend run,
+  // but it is shown read-only so a historical record is never mutated.
+  const [isHistoricalPlan, setIsHistoricalPlan] = useState(false);
 
   // Constraint Dirty Tracking - real section/window ids touched this session,
   // fed into the real replan call instead of hardcoded literals.
@@ -94,6 +117,20 @@ export default function RailNiyojanApp() {
   };
 
   // --- Step 1: Select Data Handlers ---
+
+  /**
+   * When the user picks a corridor preset, re-initialise the department source
+   * cards with task counts derived from that corridor's dataset.
+   */
+  const handleSelectCorridor = (id: CorridorPresetId) => {
+    setSelectedCorridorId(id);
+    const preset = getPreset(id);
+    if (preset.dataset) {
+      setSources(getDepartmentSources(preset.dataset, preset.label));
+    }
+    // For "custom", keep whatever sources are already loaded.
+  };
+
   const handleToggleSource = (id: string) => {
     setSources((prev) =>
       prev.map((s) =>
@@ -107,7 +144,12 @@ export default function RailNiyojanApp() {
     );
   };
 
-  const handleReplaceFile = (id: string, fileName: string) => {
+  const handleReplaceFileWithContent = (
+    id: string,
+    fileName: string,
+    content: Record<string, unknown> | null,
+    sourceType: "CSV" | "JSON",
+  ) => {
     setSources((prev) =>
       prev.map((s) =>
         s.id === id
@@ -116,17 +158,47 @@ export default function RailNiyojanApp() {
               fileName,
               status: "loaded",
               updatedAt: "Just now",
+              sourceType,
+              // Store parsed JSON; null means CSV (handled separately at submit time)
+              customDataset: content,
             }
           : s,
       ),
     );
-    showToast("info", "Dataset File Updated", `Loaded ${fileName} for ${id.toUpperCase()}`);
+    showToast("info", "File Loaded", `${fileName} ready for ${id.toUpperCase()}`);
+  };
+
+  const handleUploadCustomBase = (
+    content: Record<string, unknown> | null,
+    fileName: string,
+  ) => {
+    if (!content) {
+      showToast("error", "Invalid File", "Could not parse the uploaded JSON. Please check the file format.");
+      return;
+    }
+    setCustomBaseDataset(content);
+    // Reinitialise department cards from the uploaded file
+    setSources(getDepartmentSources(content, fileName));
+    showToast("success", "Custom Dataset Loaded", `${fileName} will be used as the base planning dataset.`);
   };
 
   const handleProceedToValidation = async () => {
     setIsBusy(true);
     try {
-      const res = await validateDatasetAdapter(null, "JSON");
+      // Determine the base dataset: preset or user-uploaded custom file.
+      const preset = getPreset(selectedCorridorId);
+      const baseDataset = selectedCorridorId === "custom"
+        ? customBaseDataset
+        : preset.dataset;
+
+      if (!baseDataset) {
+        showToast("error", "No Dataset", "Upload a base dataset file for the custom corridor before proceeding.");
+        return;
+      }
+
+      // Apply per-department skips and file overrides on top of the base.
+      const payload = buildDatasetPayload(baseDataset, sources);
+      const res = await validateDatasetAdapter(payload, "JSON");
       setValidation(res);
       setCurrentView("wizard-step-2");
     } catch (err) {
@@ -176,7 +248,7 @@ export default function RailNiyojanApp() {
       // result rather than silently activating a plan they backed out of.
       if (solveAbortedRef.current) return false;
       setPlan(newPlan);
-      setIsDemoPlan(false);
+      setIsHistoricalPlan(false);
       setHasPlanCreated(true);
       setIsDirty(false);
       setLockedCount(0);
@@ -343,37 +415,41 @@ export default function RailNiyojanApp() {
   const handleNewPlanVersion = () => {
     setPlan(null);
     setHasPlanCreated(false);
-    setIsDemoPlan(false);
+    setIsHistoricalPlan(false);
     setValidation(EMPTY_VALIDATION_STATE);
     setIsDirty(false);
     setLockedCount(0);
     setDirtySectionIds(new Set());
     setDirtyWindowIds(new Set());
     setOptimizationStatus("UP_TO_DATE");
+    // Re-seed department cards from the currently-selected corridor
+    const preset = getPreset(selectedCorridorId);
+    if (preset.dataset) setSources(getDepartmentSources(preset.dataset, preset.label));
     setCurrentView("wizard-step-1");
   };
 
   // --- Past Plans Handler ---
-  // Previous Plans stays a demo feature (no backend list-runs endpoint
-  // exists) - opening one loads the clearly-labeled demo plan, never a real
-  // run, and the reviewer screen is told isDemoPlan so it can say so.
-  const handleOpenPreviousPlan = (runId: string) => {
-    setPlan({
-      ...demoHistoricalPlan,
-      run_id: runId,
-      approval: {
-        reviewer: "Arnav Pathak",
-        comment: "Historical approved run (demo data)",
-        approved_at: "2026-08-23T12:00:00Z",
-        run_id: runId,
-        snapshot_id: "SNAP-013",
-        ruleset_version: "Demo Ruleset v1",
-      },
-    });
-    setIsDemoPlan(true);
-    setIsDirty(false);
-    setCurrentView("wizard-step-4");
-    showToast("info", "Opened Past Plan (Demo Data)", `Viewing ${runId} in read-only mode - not sourced from the live backend.`);
+  // Loads the full historical run from GET /planning-runs/{run_id} and opens
+  // it on the review desk read-only. A failed fetch leaves the current plan
+  // untouched and surfaces the real error rather than showing sample data.
+  const handleOpenPreviousPlan = async (runId: string) => {
+    setIsBusy(true);
+    try {
+      const historical = await fetchPlanningRunAdapter(runId);
+      setPlan(historical);
+      setIsHistoricalPlan(true);
+      setIsDirty(false);
+      setLockedCount(historical.jobs.filter((job) => job.locked).length);
+      setDirtySectionIds(new Set());
+      setDirtyWindowIds(new Set());
+      setOptimizationStatus("UP_TO_DATE");
+      setCurrentView("wizard-step-4");
+      showToast("info", "Opened Archived Plan", `Viewing ${runId} in read-only mode.`);
+    } catch (err) {
+      showToast("error", "Could Not Open Plan", errorMessage(err));
+    } finally {
+      setIsBusy(false);
+    }
   };
 
   // --- Rapid Block Handler ---
@@ -382,7 +458,7 @@ export default function RailNiyojanApp() {
   // post-dispatch state going forward.
   const handleDispatchApproved = (newPlan: PlanRunView) => {
     setPlan(newPlan);
-    setIsDemoPlan(false);
+    setIsHistoricalPlan(false);
     setIsDirty(false);
     setDirtySectionIds(new Set());
     setDirtyWindowIds(new Set());
@@ -418,10 +494,14 @@ export default function RailNiyojanApp() {
           <SelectDataStep
             sources={sources}
             onToggleSourceStatus={handleToggleSource}
-            onReplaceFile={handleReplaceFile}
+            onReplaceFileWithContent={handleReplaceFileWithContent}
             onContinue={handleProceedToValidation}
             onCancel={() => setCurrentView("home")}
             isBusy={isBusy}
+            selectedCorridorId={selectedCorridorId}
+            onSelectCorridor={handleSelectCorridor}
+            customBaseDataset={customBaseDataset}
+            onUploadCustomBase={handleUploadCustomBase}
           />
         )}
 
@@ -453,7 +533,7 @@ export default function RailNiyojanApp() {
               lockedCount={lockedCount}
               optimizationStatus={optimizationStatus}
               isBusy={isBusy}
-              isDemoPlan={isDemoPlan}
+              isHistoricalPlan={isHistoricalPlan}
               onLockJob={handleLockJob}
               onChangeWindow={handleChangeWindow}
               onExcludeJob={handleExcludeJob}
@@ -495,7 +575,7 @@ export default function RailNiyojanApp() {
 
         {currentView === "previous-plans" && (
           <PreviousPlansList
-            onSelectPlan={handleOpenPreviousPlan}
+            onSelectPlan={(runId) => void handleOpenPreviousPlan(runId)}
             onBackToHome={() => setCurrentView("home")}
           />
         )}

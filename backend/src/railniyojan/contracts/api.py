@@ -104,6 +104,28 @@ class AiEstimate(ApiModel):
     reason_codes: list[str] = Field(min_length=1)
 
 
+class PlanningRunSummary(ApiModel):
+    """Lightweight archive row for GET /planning-runs.
+
+    Deliberately excludes schedule_items/jobs/ai_estimates so listing the
+    archive does not stream every job of every historical run.
+    """
+
+    run_id: str
+    state: PlanningRunState
+    snapshot_id: str
+    ruleset_version: str
+    created_at: datetime
+    completed_at: datetime | None
+    parent_run_id: str | None = None
+    trigger_type: str
+    total_job_count: int
+    scheduled_job_count: int
+    validator_passed: bool
+    approval: ApprovalSummary | None = None
+    kpis: KpiSummary | None = None
+
+
 class PlanningRunDetail(ApiModel):
     run_id: str
     state: PlanningRunState

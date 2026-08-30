@@ -95,6 +95,23 @@ export interface RunDetail {
   ai_estimates: AiEstimate[];
 }
 
+/** Archive row from GET /planning-runs - no schedule_items/jobs payload. */
+export interface PlanningRunSummary {
+  run_id: string;
+  state: RunDetail["state"];
+  snapshot_id: string;
+  ruleset_version: string;
+  created_at: string;
+  completed_at: string | null;
+  parent_run_id: string | null;
+  trigger_type: string;
+  total_job_count: number;
+  scheduled_job_count: number;
+  validator_passed: boolean;
+  approval: ApprovalSummary | null;
+  kpis: KpiSummary | null;
+}
+
 interface RunCreated {
   run_id: string;
 }
@@ -184,6 +201,11 @@ export async function createPlanningRun(snapshotId: string): Promise<RunDetail> 
     body: JSON.stringify({ snapshot_id: snapshotId, ruleset_version: "Demo Ruleset v1" }),
   });
   return getPlanningRun(created.run_id);
+}
+
+/** Every persisted planning run, newest first. */
+export function listPlanningRuns(): Promise<PlanningRunSummary[]> {
+  return requestJson("/planning-runs");
 }
 
 export function getPlanningRun(runId: string): Promise<RunDetail> {

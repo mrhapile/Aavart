@@ -58,7 +58,10 @@ function subscribe(listener: () => void) {
 }
 
 const getSnapshot = () => snapshot;
-const getServerSnapshot = (): HistoryEntry => ({ view: "home", depth: 0 });
+// Must be referentially stable - returning a fresh object on every call makes
+// useSyncExternalStore re-render forever during SSR/hydration.
+const SERVER_SNAPSHOT: HistoryEntry = { view: "home", depth: 0 };
+const getServerSnapshot = (): HistoryEntry => SERVER_SNAPSHOT;
 
 /**
  * Keeps the single-page view in sync with real browser history entries, so

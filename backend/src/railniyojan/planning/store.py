@@ -48,6 +48,25 @@ class RunRecord:
 
 
 @dataclass
+class RunSummaryRecord:
+    """Archive-list projection of a run - no schedule items, jobs or estimates."""
+
+    run_id: str
+    snapshot_id: str
+    ruleset_version: str
+    state: PlanningRunState
+    created_at: datetime
+    completed_at: datetime | None
+    parent_run_id: str | None
+    trigger_type: str
+    total_job_count: int
+    scheduled_job_count: int
+    validator_passed: bool
+    approval: ApprovalSummary | None = None
+    kpis: KpiSummary | None = None
+
+
+@dataclass
 class RapidBlockRecord:
     request_id: str
     base_run_id: str
@@ -85,6 +104,26 @@ class ExportRecord:
     format: str
     created_by: str
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+
+
+def summarize_run(run: RunRecord) -> RunSummaryRecord:
+    """Projects a full RunRecord onto the lightweight archive row."""
+    total = len(run.changes) or (len(run.schedule_items) + len(run.unscheduled_reason_codes))
+    return RunSummaryRecord(
+        run_id=run.run_id,
+        snapshot_id=run.snapshot_id,
+        ruleset_version=run.ruleset_version,
+        state=run.state,
+        created_at=run.created_at,
+        completed_at=run.completed_at,
+        parent_run_id=run.parent_run_id,
+        trigger_type=run.trigger_type,
+        total_job_count=total,
+        scheduled_job_count=len(run.schedule_items),
+        validator_passed=run.validator_passed,
+        approval=run.approval,
+        kpis=run.kpis,
+    )
 
 
 class PlanningStore:
@@ -148,6 +187,12 @@ class PlanningStore:
                 raise KeyError(run.run_id)
             self._runs[run.run_id] = deepcopy(run)
             return deepcopy(run)
+
+    def list_runs(self) -> list[RunSummaryRecord]:
+        with self._lock:
+            summaries = [summarize_run(run) for run in self._runs.values()]
+        summaries.sort(key=lambda summary: (summary.created_at, summary.run_id), reverse=True)
+        return summaries
 
     def save_rapidblock_request(self, record: RapidBlockRecord) -> RapidBlockRecord:
         with self._lock:

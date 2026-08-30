@@ -326,6 +326,13 @@
       "JobContext": {
         "additionalProperties": false,
         "properties": {
+          "allowed_windows": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Allowed Windows",
+            "type": "array"
+          },
           "asset_id": {
             "title": "Asset Id",
             "type": "string"
@@ -334,6 +341,10 @@
             "title": "Department",
             "type": "string"
           },
+          "duration_minutes": {
+            "title": "Duration Minutes",
+            "type": "integer"
+          },
           "job_id": {
             "title": "Job Id",
             "type": "string"
@@ -341,6 +352,13 @@
           "priority": {
             "title": "Priority",
             "type": "integer"
+          },
+          "required_resources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Resources",
+            "type": "array"
           },
           "section_id": {
             "title": "Section Id",
@@ -357,7 +375,10 @@
           "asset_id",
           "section_id",
           "work_type",
-          "priority"
+          "priority",
+          "duration_minutes",
+          "required_resources",
+          "allowed_windows"
         ],
         "title": "JobContext",
         "type": "object"
@@ -680,6 +701,105 @@
         ],
         "title": "PlanningRunState",
         "type": "string"
+      },
+      "PlanningRunSummary": {
+        "additionalProperties": false,
+        "description": "Lightweight archive row for GET /planning-runs.\n\nDeliberately excludes schedule_items/jobs/ai_estimates so listing the\narchive does not stream every job of every historical run.",
+        "properties": {
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApprovalSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "kpis": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/KpiSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "parent_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Run Id"
+          },
+          "ruleset_version": {
+            "title": "Ruleset Version",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "scheduled_job_count": {
+            "title": "Scheduled Job Count",
+            "type": "integer"
+          },
+          "snapshot_id": {
+            "title": "Snapshot Id",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/PlanningRunState"
+          },
+          "total_job_count": {
+            "title": "Total Job Count",
+            "type": "integer"
+          },
+          "trigger_type": {
+            "title": "Trigger Type",
+            "type": "string"
+          },
+          "validator_passed": {
+            "title": "Validator Passed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "run_id",
+          "state",
+          "snapshot_id",
+          "ruleset_version",
+          "created_at",
+          "completed_at",
+          "trigger_type",
+          "total_job_count",
+          "scheduled_job_count",
+          "validator_passed"
+        ],
+        "title": "PlanningRunSummary",
+        "type": "object"
       },
       "RapidBlockDetail": {
         "additionalProperties": false,
@@ -1163,18 +1283,6 @@
     "/datasets/validate": {
       "post": {
         "operationId": "validate_dataset_endpoint_datasets_validate_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": true,
-                "title": "Payload",
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
           "200": {
             "content": {
@@ -1185,16 +1293,6 @@
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
         "summary": "Validate Dataset Endpoint",
@@ -1229,6 +1327,30 @@
       }
     },
     "/planning-runs": {
+      "get": {
+        "description": "Archive of every persisted run, newest first.",
+        "operationId": "list_planning_runs_planning_runs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PlanningRunSummary"
+                  },
+                  "title": "Response List Planning Runs Planning Runs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Planning Runs",
+        "tags": [
+          "planning-runs"
+        ]
+      },
       "post": {
         "operationId": "create_planning_run_planning_runs_post",
         "requestBody": {
@@ -1504,6 +1626,168 @@
         "summary": "Replan",
         "tags": [
           "planning-runs"
+        ]
+      }
+    },
+    "/railradar/trains/{train_number}/live": {
+      "get": {
+        "operationId": "live_railradar_trains__train_number__live_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "train_number",
+            "required": true,
+            "schema": {
+              "title": "Train Number",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Live Railradar Trains  Train Number  Live Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Live",
+        "tags": [
+          "railradar"
+        ]
+      }
+    },
+    "/railradar/trains/{train_number}/route": {
+      "get": {
+        "operationId": "route_railradar_trains__train_number__route_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "train_number",
+            "required": true,
+            "schema": {
+              "title": "Train Number",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "geojson",
+              "title": "Format",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stops",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Stops",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Route Railradar Trains  Train Number  Route Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Route",
+        "tags": [
+          "railradar"
+        ]
+      }
+    },
+    "/railradar/trains/{train_number}/timetable": {
+      "get": {
+        "operationId": "timetable_railradar_trains__train_number__timetable_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "train_number",
+            "required": true,
+            "schema": {
+              "title": "Train Number",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "halts_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Halts Only",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Timetable Railradar Trains  Train Number  Timetable Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Timetable",
+        "tags": [
+          "railradar"
         ]
       }
     },

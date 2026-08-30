@@ -4,7 +4,7 @@ from copy import deepcopy
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from railniyojan.contracts.api import AiEstimate, ApprovalSummary, KpiSummary
@@ -27,6 +27,7 @@ from railniyojan.planning.store import (
     ExportRecord,
     RapidBlockRecord,
     RunRecord,
+    RunSummaryRecord,
     SnapshotRecord,
 )
 
@@ -94,6 +95,83 @@ class SqlAlchemyPlanningStore:
                 raise KeyError(run.run_id)
             self._upsert_run(session, run)
             return deepcopy(run)
+
+    def list_runs(self) -> list[RunSummaryRecord]:
+        """Newest-first archive rows.
+
+        Reads only the run header plus three aggregate lookups - the schedule
+        items themselves are never loaded, so the archive list stays cheap
+        regardless of how many jobs each historical run carries.
+        """
+        with self._session_factory() as session:
+            rows = session.scalars(
+                select(PlanningRun).order_by(PlanningRun.created_at.desc(), PlanningRun.id.desc())
+            ).all()
+            if not rows:
+                return []
+            run_ids = [row.id for row in rows]
+            scheduled_counts: dict[str, int] = dict(
+                session.execute(
+                    select(ScheduleItemRecord.run_id, func.count())
+                    .where(ScheduleItemRecord.run_id.in_(run_ids))
+                    .group_by(ScheduleItemRecord.run_id)
+                )
+                .tuples()
+                .all()
+            )
+            validator_passed: dict[str, bool] = dict(
+                session.execute(
+                    select(ValidatorResult.run_id, ValidatorResult.passed).where(
+                        ValidatorResult.run_id.in_(run_ids)
+                    )
+                )
+                .tuples()
+                .all()
+            )
+            approvals = {
+                approval.run_id: approval
+                for approval in session.scalars(
+                    select(Approval).where(Approval.run_id.in_(run_ids))
+                ).all()
+            }
+            summaries: list[RunSummaryRecord] = []
+            for row in rows:
+                metadata = row.raw_metadata
+                changes: dict[str, str] = metadata.get("changes", {})
+                scheduled = int(scheduled_counts.get(row.id, 0))
+                approval_row = approvals.get(row.id)
+                summaries.append(
+                    RunSummaryRecord(
+                        run_id=row.id,
+                        snapshot_id=row.snapshot_id,
+                        ruleset_version=row.ruleset_version,
+                        state=PlanningRunState(row.state),
+                        created_at=_with_utc(row.created_at),
+                        completed_at=_with_utc(row.completed_at)
+                        if row.completed_at is not None
+                        else None,
+                        parent_run_id=row.parent_run_id,
+                        trigger_type=row.trigger_type,
+                        total_job_count=len(changes)
+                        or scheduled + len(metadata.get("unscheduled_reason_codes", {})),
+                        scheduled_job_count=scheduled,
+                        validator_passed=bool(validator_passed.get(row.id, False)),
+                        approval=ApprovalSummary(
+                            reviewer=approval_row.reviewer,
+                            comment=approval_row.comment,
+                            approved_at=_with_utc(approval_row.approved_at),
+                            run_id=row.id,
+                            snapshot_id=row.snapshot_id,
+                            ruleset_version=row.ruleset_version,
+                        )
+                        if approval_row is not None
+                        else None,
+                        kpis=KpiSummary.model_validate(metadata["kpis"])
+                        if metadata.get("kpis")
+                        else None,
+                    )
+                )
+            return summaries
 
     def save_rapidblock_request(self, record: RapidBlockRecord) -> RapidBlockRecord:
         with self._session_factory.begin() as session:

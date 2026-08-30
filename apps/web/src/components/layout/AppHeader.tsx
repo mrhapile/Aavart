@@ -118,9 +118,7 @@ export function AppHeader({
             <span className="rn-pulse-red" />
             <strong>RAPID BLOCK EMERGENCY DESK</strong>
           </div>
-        ) : (
-          <div className="rn-home-accent-bar" />
-        )}
+        ) : null}
       </div>
 
       {/* 3. Right: Backend Status, Date, Time, User Profile */}

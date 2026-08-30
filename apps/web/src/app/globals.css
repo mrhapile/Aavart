@@ -1,4 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+@import "leaflet/dist/leaflet.css";
 
 :root {
   --bg-page: #F8FAFC;
@@ -140,10 +141,12 @@ button:disabled {
 .rn-header {
   background-color: #FFFFFF;
   border-bottom: 1px solid var(--border-subtle);
-  padding: 0.75rem 2rem;
+  padding: 0.75rem 1.5rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 1.25rem;
+  flex-wrap: nowrap;
   position: sticky;
   top: 0;
   z-index: 100;
@@ -154,6 +157,7 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex: 0 0 auto;
 }
 
 .rn-brand-btn {
@@ -164,6 +168,7 @@ button:disabled {
 }
 
 .rn-logo-icon {
+  flex-shrink: 0;
   width: 38px;
   height: 38px;
   background: var(--brand-blue-light);
@@ -177,6 +182,7 @@ button:disabled {
 .rn-brand-titles {
   display: flex;
   flex-direction: column;
+  white-space: nowrap;
 }
 
 .rn-brand-title {
@@ -205,22 +211,37 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
+  /* The flexible middle: the brand and meta groups keep their intrinsic width,
+     and only the stepper compresses (then scrolls) as the window narrows. */
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* If it ever does overflow, fade the edge instead of slicing a glyph. */
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+}
+
+.rn-header-center::-webkit-scrollbar {
+  display: none;
 }
 
 .rn-stepper {
   display: flex;
   align-items: center;
-  gap: 1.75rem;
+  gap: clamp(0.55rem, 0.9vw, 1.15rem);
+  flex: 0 0 auto;
 }
 
 .rn-step-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 0.25rem 0.55rem;
+  gap: 0.4rem;
+  padding: 0.4rem 0.2rem 0.55rem;
   color: var(--text-muted);
   font-weight: 500;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
+  flex: 0 0 auto;
   position: relative;
   transition: all 0.15s ease;
   border-bottom: 2px solid transparent;
@@ -241,8 +262,9 @@ button:disabled {
 }
 
 .rn-step-badge {
-  width: 20px;
-  height: 20px;
+  flex-shrink: 0;
+  width: 19px;
+  height: 19px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -280,27 +302,42 @@ button:disabled {
 .rn-header-meta {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 0.85rem;
+  flex: 0 0 auto;
 }
 
+/* Vertical pipe dividers between the three header-right groups.
+   Applied as left/right borders on the middle (datetime) group so no extra
+   DOM elements are needed. */
 .rn-datetime-group {
   display: flex;
   align-items: center;
-  gap: 1.25rem;
+  gap: 0.75rem;
   color: var(--text-muted);
-  font-size: 0.82rem;
+  font-size: 0.72rem;
   font-weight: 500;
+  padding: 0.1rem 0.7rem;
+  border-left: 1px solid var(--border-subtle, #E2E8F0);
+  border-right: 1px solid var(--border-subtle, #E2E8F0);
+  white-space: nowrap;
 }
 
 .rn-date-item, .rn-time-item {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.rn-date-item svg, .rn-time-item svg {
+  flex-shrink: 0;
 }
 
 .rn-user-pill {
   display: flex;
   align-items: center;
+  flex: 0 0 auto;
   gap: 0.65rem;
   padding: 0.35rem 0.65rem 0.35rem 0.35rem;
   background: var(--bg-subtle);
@@ -315,6 +352,7 @@ button:disabled {
 }
 
 .rn-user-avatar {
+  flex-shrink: 0;
   width: 28px;
   height: 28px;
   border-radius: 50%;
@@ -332,6 +370,7 @@ button:disabled {
   flex-direction: column;
   line-height: 1.15;
   text-align: left;
+  white-space: nowrap;
 }
 
 .rn-user-role {
@@ -364,6 +403,44 @@ button:disabled {
   border-radius: 50%;
   background: var(--status-red);
   box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3);
+}
+
+/* Header degrades by dropping the least load-bearing metadata first, so the
+   stepper and the identity pill never wrap or get clipped. */
+@media (max-width: 1400px) {
+  .rn-header { padding: 0.75rem 1.15rem; gap: 0.9rem; }
+  .rn-datetime-group { gap: 0.65rem; padding: 0.1rem 0.65rem; }
+}
+
+@media (max-width: 1280px) {
+  .rn-brand-subtitle { display: none; }
+  .rn-datetime-group .rn-date-item { display: none; }
+}
+
+/* Below this the five labels cannot fit. Keep the numbered badges (which carry
+   the progress) and name only the step the user is on, rather than letting the
+   strip scroll and clip a label mid-glyph. */
+@media (max-width: 1060px) {
+  .rn-step-item:not(.active) .rn-step-label { display: none; }
+  .rn-stepper { gap: 0.5rem; }
+}
+
+@media (max-width: 1100px) {
+  .rn-datetime-group { display: none; }
+  .rn-user-text { display: none; }
+  .rn-user-pill { padding: 0.25rem; }
+}
+
+@media (max-width: 900px) {
+  .rn-backend-status span:not(.rn-status-dot) { display: none; }
+  .rn-backend-status { padding: 0.35rem; }
+}
+
+/* Narrow viewports: the logo alone identifies the app, so give the width back
+   to the stepper - the one thing here that has to stay readable. */
+@media (max-width: 720px) {
+  .rn-brand-titles { display: none; }
+  .rn-header { padding: 0.75rem 0.75rem; gap: 0.6rem; }
 }
 
 /* ==========================================================================
@@ -430,9 +507,19 @@ button:disabled {
   box-shadow: var(--shadow-md);
   padding: 2.5rem 3rem;
   display: grid;
-  grid-template-columns: 1.05fr 1fr;
+  /* minmax(0, …) so the columns can shrink; bare fr units are min-content
+     floored and made the whole page scroll sideways on narrow viewports. */
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
   gap: 3.5rem;
   align-items: start;
+}
+
+@media (max-width: 900px) {
+  .rn-home-card {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2rem;
+    padding: 1.75rem 1.5rem;
+  }
 }
 
 .rn-home-left {
@@ -972,7 +1059,11 @@ button:disabled {
 
 .rn-review-grid {
   display: grid;
-  grid-template-columns: 1fr 360px;
+  /* minmax(0, 1fr), not 1fr: a bare `1fr` is `minmax(auto, 1fr)`, so the main
+     column refuses to shrink below its min-content width. The horizontally
+     scrolling section rail inside it then pushes the whole grid — sidebar
+     included — off the right edge of the viewport. */
+  grid-template-columns: minmax(0, 1fr) 360px;
   gap: 1.25rem;
   align-items: start;
 }
@@ -981,6 +1072,17 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  min-width: 0;
+}
+
+.rn-review-main-col > .rn-card {
+  min-width: 0;
+}
+
+@media (max-width: 1180px) {
+  .rn-review-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .rn-corridor-header-actions {
@@ -1023,38 +1125,217 @@ button:disabled {
   background: var(--bg-subtle);
 }
 
+/* --------------------------------------------------------------------------
+   Corridor map (Leaflet)
+
+   Leaflet needs a container with a *definite* height - a percentage height on
+   an auto-height parent collapses the map to 0px. Every variant below sets an
+   explicit height, and the component sets none inline.
+   -------------------------------------------------------------------------- */
 .rn-corridor-map-wrap {
+  position: relative;
+  /* Leaflet assigns its panes and controls z-indexes in the 200-1000 range, and
+     the legend below sits above them. Without a stacking context those values
+     compete with the app's own layers, and the in-card map's chrome punches
+     through the modal backdrop (z-index 100) when the expanded map opens. */
+  isolation: isolate;
+  z-index: 0;
   width: 100%;
-  height: 140px;
+  height: 260px;
   border-radius: var(--radius-md);
   overflow: hidden;
   border: 1px solid var(--border-subtle);
+  background: #EEF2F7;
+}
+
+/* Only separate the map from what follows it. On the Approve screen the map is
+   the last thing in its card, where a trailing margin just leaves dead space. */
+.rn-corridor-map-wrap:not(:last-child) {
   margin-bottom: 1rem;
 }
 
-.rn-corridor-map-svg {
-  width: 100%;
+.rn-corridor-map-wrap.is-tall {
+  height: 420px;
+}
+
+.rn-leaflet-map {
   height: 100%;
+  width: 100%;
+  /* Below the app header (z-index 100) and modals, above the card surface. */
+  z-index: 0;
+  background: #EEF2F7;
 }
 
-.rn-map-stn-code {
-  font-size: 10px;
+/* Mutes the standard OSM raster down to a light, low-chroma basemap so the
+   corridor overlay reads first. Applied to the tile pane only - the SVG
+   overlay pane (routes, station markers) keeps its full saturation. */
+.rn-leaflet-map .leaflet-tile-pane {
+  filter: saturate(0.45) contrast(1.04);
+}
+
+/* Leaflet's chrome, restyled to match the rest of the desk. The global
+   `* { padding: 0 }` reset strips Leaflet's own spacing, so it is restored
+   here rather than relied upon. */
+.rn-corridor-map-wrap .leaflet-control-attribution {
+  padding: 0 0.4rem;
+  font-size: 0.62rem;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--text-dim);
+}
+
+.rn-corridor-map-wrap .leaflet-control-attribution a {
+  color: var(--text-muted);
+}
+
+.rn-corridor-map-wrap .leaflet-control-zoom a {
+  width: 26px;
+  height: 26px;
+  line-height: 26px;
+  color: var(--text-main);
+  border-bottom-color: var(--border-subtle);
+}
+
+.rn-corridor-map-wrap .leaflet-bar {
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Tooltips */
+.rn-corridor-map-wrap .leaflet-tooltip.rn-map-tip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.rn-map-tip-title {
+  font-size: 0.74rem;
   font-weight: 700;
-  fill: var(--text-main);
+  color: var(--text-main);
 }
 
-.rn-map-stn-sub {
-  font-size: 8px;
-  fill: var(--text-muted);
+.rn-map-tip-route,
+.rn-map-tip-meta {
+  font-size: 0.68rem;
+  color: var(--text-muted);
 }
 
+.rn-map-tip-incident {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--status-red-dark);
+}
+
+/* Legend pinned inside the map frame */
+.rn-map-legend {
+  position: absolute;
+  left: 0.5rem;
+  bottom: 0.5rem;
+  z-index: 400; /* above Leaflet panes, below its popups */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.3rem 0.55rem;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-sm);
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.rn-map-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.rn-map-swatch {
+  display: inline-block;
+  border-radius: 2px;
+}
+
+.rn-map-swatch.route {
+  width: 14px;
+  height: 3px;
+  background: var(--brand-blue);
+}
+
+.rn-map-swatch.incident {
+  width: 14px;
+  height: 3px;
+  background: var(--status-red);
+}
+
+.rn-map-swatch.node {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  border: 2px solid var(--brand-navy);
+}
+
+/* Loading placeholder shown while the Leaflet chunk streams in */
+.rn-corridor-map-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+  background: var(--bg-subtle);
+}
+
+.rn-map-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--brand-blue);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Horizontal rail: a corridor can carry 11+ sections, which as a wrapping
+   4-column grid became a three-row wall under the map. Scrolled sideways it
+   stays one row tall and reads as the running order of the corridor. */
 .rn-sections-status-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
+  flex-wrap: nowrap;
   gap: 0.85rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  padding-bottom: 0.6rem; /* room for the scrollbar */
+  scrollbar-width: thin;
+  /* Softens the right edge so a clipped card reads as "scroll for more"
+     rather than as a broken layout. */
+  -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 34px), transparent 100%);
+  mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 34px), transparent 100%);
+}
+
+/* Once every card fits there is nothing to scroll to - drop the fade. */
+@media (min-width: 1900px) {
+  .rn-sections-status-grid {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
 }
 
 .rn-sec-card {
+  /* Fixed basis, not a percentage: these cards live in a scrolling flex row,
+     where a % min-width resolves against the *content* width and fights the
+     `width: 100%` from the button reset further down this file. */
+  flex: 0 0 236px;
+  scroll-snap-align: start;
   background: #FFFFFF;
   border: 1px solid var(--border-card);
   border-radius: var(--radius-md);
@@ -1144,8 +1425,24 @@ button:disabled {
 /* Review Mid Grid: Timeline + Plan Impact */
 .rn-review-mid-grid {
   display: grid;
-  grid-template-columns: 1.45fr 1fr;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
   gap: 1.25rem;
+  /* Both cards share the row height. The timeline can no longer out-grow the
+     impact card because the gantt body is capped and scrolls (below), so
+     stretching is safe and keeps the two card bottoms aligned. */
+  align-items: stretch;
+}
+
+.rn-review-mid-grid > .rn-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+@media (max-width: 1180px) {
+  .rn-review-mid-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* Gantt Timeline Table */
@@ -1158,9 +1455,76 @@ button:disabled {
   font-weight: 600;
 }
 
+/* --------------------------------------------------------------------------
+   Gantt day axis
+
+   `--rn-gantt-label-w` is shared by the axis spacer and the section-label
+   column so the two stay locked together; `--rn-gantt-lane-pad` matches the
+   track cell's horizontal padding so day labels sit exactly over their
+   gridlines.
+   -------------------------------------------------------------------------- */
+.rn-timeline-card {
+  --rn-gantt-label-w: 130px;
+  --rn-gantt-lane-pad: 0.5rem;
+}
+
+.rn-gantt-axis {
+  display: flex;
+  align-items: stretch;
+  margin-bottom: 0.35rem;
+}
+
+.rn-gantt-axis-spacer {
+  flex: 0 0 var(--rn-gantt-label-w);
+}
+
+.rn-gantt-axis-days {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  /* +1px for the label column's right border inside the table. */
+  padding-left: calc(var(--rn-gantt-lane-pad) + 1px);
+  padding-right: var(--rn-gantt-lane-pad);
+}
+
+.rn-gantt-day {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.05rem;
+  padding: 0.1rem 0.15rem;
+  text-align: center;
+  border-left: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+
+.rn-gantt-day:first-child {
+  border-left: none;
+}
+
+.rn-gantt-day b {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-main);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.rn-gantt-day i {
+  font-size: 0.62rem;
+  font-style: normal;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
 .rn-gantt-table-wrap {
   width: 100%;
-  overflow-x: auto;
+  flex: 1;
+  overflow: auto;
+  min-height: 120px;
+  max-height: 300px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   margin-bottom: 0.85rem;
@@ -1168,9 +1532,14 @@ button:disabled {
 
 .rn-gantt-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.75rem;
   text-align: left;
+}
+
+.rn-gantt-table tr + tr {
+  border-top: 1px solid var(--border-subtle);
 }
 
 .rn-gantt-table thead {
@@ -1216,10 +1585,17 @@ button:disabled {
   border-bottom: none;
 }
 
+/* The label column's width used to be declared on `.rn-th-section`, but the
+   Gantt renders no <thead> - so nothing constrained it and auto table layout
+   gave the labels most of the row, squeezing every bar into a sliver on the
+   right. Pin the label column and let the track lane take the rest. */
 .rn-td-sec-info {
-  padding: 0.65rem 0.75rem;
+  width: 130px;
+  min-width: 130px;
+  padding: 0.55rem 0.7rem;
   border-right: 1px solid var(--border-subtle);
   background: #F8FAFC;
+  white-space: nowrap;
 }
 
 .rn-td-sec-info strong {
@@ -1234,6 +1610,7 @@ button:disabled {
 }
 
 .rn-td-track-cell {
+  width: auto;
   padding: 0.4rem 0.5rem;
   position: relative;
 }
@@ -1246,6 +1623,40 @@ button:disabled {
   position: relative;
   display: flex;
   align-items: center;
+  overflow: hidden;
+}
+
+/* Day boundaries, positioned to the same fractions as the axis header. */
+.rn-track-gridline {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border-subtle);
+  pointer-events: none;
+}
+
+/* Bars are positioned by inline left/width percentages; a floor keeps a short
+   45-minute job clickable on a multi-day axis. */
+.rn-bar-integrated,
+.rn-bar-selected-work,
+.rn-bar-trains {
+  min-width: 5px;
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.rn-bar-integrated:hover,
+.rn-bar-selected-work:hover,
+.rn-bar-trains:hover {
+  transform: scaleY(1.14);
+}
+
+.rn-bar-integrated.is-selected,
+.rn-bar-selected-work.is-selected,
+.rn-bar-trains.is-selected {
+  outline: 2px solid var(--brand-blue);
+  outline-offset: 1px;
+  z-index: 1;
 }
 
 .rn-bar-integrated {
@@ -1284,7 +1695,11 @@ button:disabled {
 }
 
 .rn-bar-selected-work {
-  flex: 1;
+  /* position: absolute is required so that the inline left/width styles
+     generated by WeeklyTimelineSummary are actually applied by the browser.
+     Without it, the element falls back to flex-child sizing and renders as
+     a 1px sliver. */
+  position: absolute;
   height: 18px;
   border: 1.5px solid var(--block-purple);
   background-color: var(--block-purple-bg);
@@ -1461,6 +1876,7 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  min-width: 0;
 }
 
 .rn-job-inspector-card {
@@ -1582,13 +1998,15 @@ button:disabled {
 .rn-backend-status {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
-  font-size: 0.72rem;
+  flex: 0 0 auto;
+  gap: 0.4rem;
+  font-size: 0.7rem;
   font-weight: 600;
-  padding: 0.2rem 0.55rem;
+  padding: 0.25rem 0.6rem;
   border-radius: 12px;
   background: #F1F5F9;
   color: #475569;
+  white-space: nowrap;
 }
 
 .rn-backend-status .rn-status-dot {
@@ -1641,13 +2059,26 @@ button:disabled {
 
 .rn-corridor-map-empty {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 100px;
-  color: var(--text-muted);
+  gap: 0.3rem;
+  padding: 1rem 1.5rem;
+  text-align: center;
+  background: var(--bg-subtle);
+  border-style: dashed;
+}
+
+.rn-corridor-map-empty strong {
   font-size: 0.85rem;
-  background: #F8FAFC;
-  border-radius: 8px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.rn-corridor-map-empty p {
+  max-width: 46ch;
+  font-size: 0.76rem;
+  color: var(--text-muted);
 }
 
 .rn-inspector-kv-table {
@@ -2473,6 +2904,208 @@ button:disabled {
 .select-data-layout, .check-data-layout {
   max-width: 1180px;
   margin: 0.5rem auto;
+}
+
+/* ==========================================================================
+   Corridor Selector — Step 1
+   ========================================================================== */
+
+.corridor-selector-section {
+  margin-bottom: 1.75rem;
+}
+
+.corridor-selector-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+/* Equal-width columns rather than a flex row: the four presets have very
+   different label lengths, and auto-sized cards left ragged gaps between the
+   title and the meta pills. */
+.corridor-selector-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
+  max-width: 1000px;
+  padding-bottom: 4px; /* prevents cut-off of box-shadow */
+}
+
+@media (max-width: 1100px) {
+  .corridor-selector-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Individual corridor preset card */
+.corridor-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 84px;
+  padding: 0.7rem 1.95rem 0.7rem 0.85rem;
+  background: #FFFFFF;
+  border: 1.5px solid var(--border-subtle, #E2E8F0);
+  border-radius: var(--radius-lg, 10px);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+}
+
+.corridor-card:hover {
+  border-color: #94A3B8;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.corridor-card.selected {
+  border-color: var(--brand-blue, #0047BA);
+  background: linear-gradient(135deg, #EFF6FF 0%, #FFFFFF 60%);
+  box-shadow: 0 0 0 3px rgba(0, 71, 186, 0.12), var(--shadow-sm);
+}
+
+.corridor-card-check {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: var(--brand-blue, #0047BA);
+  color: #FFFFFF;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.corridor-card-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.25;
+}
+
+/* Pinned to the bottom so the pill rows line up across all four cards even
+   when a title wraps to two lines. */
+.corridor-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: auto;
+}
+
+.corridor-meta-pill {
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--text-muted);
+  background: var(--bg-subtle, #F1F5F9);
+  border: 1px solid var(--border-subtle, #E2E8F0);
+  border-radius: 10px;
+  /* Sized so the widest preset ("Double Line / 11 sec / 90 jobs") still fits
+     on one row inside a quarter-width card. */
+  padding: 0.15rem 0.4rem;
+}
+
+.corridor-card.selected .corridor-meta-pill {
+  background: rgba(0, 71, 186, 0.06);
+  border-color: rgba(0, 71, 186, 0.2);
+  color: var(--brand-blue, #0047BA);
+}
+
+.upload-pill {
+  background: var(--status-orange-bg, #FEF3C7);
+  border-color: #FCD34D;
+  color: #92400E;
+}
+
+/* Custom dataset base upload zone */
+.custom-base-upload-zone {
+  margin-top: 0.85rem;
+  border: 1.5px dashed var(--border-strong, #94A3B8);
+  border-radius: var(--radius-lg, 10px);
+  background: #FAFBFC;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.custom-base-upload-zone.uploaded {
+  border-color: var(--status-green-dark, #15803D);
+  background: var(--status-green-bg, #DCFCE7);
+  border-style: solid;
+}
+
+.custom-base-drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 1.5rem 2rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  text-align: center;
+}
+
+.custom-base-drop-zone:hover {
+  background: #F0F4FF;
+  border-color: var(--brand-blue);
+}
+
+.custom-base-drop-zone small {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.custom-base-drop-zone code {
+  font-family: monospace;
+  background: #E2E8F0;
+  padding: 0 0.3em;
+  border-radius: 3px;
+}
+
+.custom-base-uploaded-state {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 1rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--status-green-dark, #15803D);
+}
+
+.custom-base-reupload-btn {
+  margin-left: auto;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: #FFFFFF;
+  cursor: pointer;
+}
+
+/* "Custom" badge on department cards when a file override is loaded */
+.custom-file-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--brand-blue);
+  background: var(--brand-blue-light, #EFF6FF);
+  border: 1px solid rgba(0, 71, 186, 0.2);
+  border-radius: 10px;
+  padding: 0.1rem 0.45rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .planning-step-header {
@@ -4252,11 +4885,32 @@ button:disabled { cursor: not-allowed; }
 .mono-run-id { font-weight: 700; color: var(--text-main); }
 .mono-snap-id { color: var(--text-muted); }
 
-.state-badge-optimal {
+/* Archive solver-state pill, toned by getRunStateTone() so a non-optimal
+   historical run is not painted green. */
+.state-badge {
   padding: 0.15rem 0.5rem; border-radius: 12px;
   font-size: 0.68rem; font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.state-badge--good {
   background: var(--status-green-bg); color: var(--status-green-dark);
-  border: 1px solid var(--status-green-border);
+  border-color: var(--status-green-border);
+}
+
+.state-badge--warn {
+  background: var(--status-orange-bg); color: var(--status-orange-dark);
+  border-color: var(--status-orange-border);
+}
+
+.state-badge--bad {
+  background: var(--status-red-bg); color: var(--status-red-dark);
+  border-color: var(--status-red-border);
+}
+
+.state-badge--neutral {
+  background: var(--bg-subtle); color: var(--text-muted);
+  border-color: var(--border-subtle);
 }
 
 .gain-cell { color: var(--status-green-dark); font-weight: 600; }
@@ -4276,6 +4930,9 @@ button:disabled { cursor: not-allowed; }
    Plan Impact comparison table + misc leftovers
    ========================================================================== */
 .rn-plan-impact-card { display: flex; flex-direction: column; }
+/* The card stretches to the timeline's height; spread the three metrics through
+   that space rather than stacking them at the top over a large void. */
+.rn-plan-impact-card .rn-impact-items-list { flex: 1; justify-content: space-evenly; }
 .rn-impact-footer { margin-top: auto; padding-top: 0.75rem; }
 
 .comparison-table-wrapper { overflow-x: auto; margin-top: 0.6rem; }
@@ -4330,8 +4987,19 @@ button:disabled { cursor: not-allowed; }
 .file-icon { margin-right: 0.15rem; }
 .skipped-note { color: var(--text-dim); font-style: italic; }
 
-.horizon-switch-box { display: flex; flex-direction: column; gap: 0.35rem; align-items: flex-end; }
-.switch-label { font-size: 0.72rem; color: var(--text-muted); font-weight: 600; }
+.horizon-switch-box { 
+  display: flex; 
+  flex-direction: row; 
+  gap: 0.75rem; 
+  align-items: center; 
+}
+
+.switch-label { 
+  font-size: 0.72rem; 
+  color: var(--text-muted); 
+  font-weight: 600; 
+  margin: 0;
+}
 
 .guide-icon { flex-shrink: 0; }
 .guide-text strong { display: block; font-size: 0.78rem; font-weight: 700; margin-bottom: 0.15rem; }
@@ -4551,8 +5219,16 @@ button:disabled { cursor: not-allowed; }
   text-align: left;
   font: inherit;
   color: inherit;
-  width: 100%;
   appearance: none;
+}
+
+/* `width: 100%` only where the card is a block/grid child. `.rn-sec-card` is
+   excluded on purpose - it is a flex item in a horizontally scrolling rail and
+   is sized by its `flex` basis above. */
+.rn-action-card,
+.expanded-job-card,
+.expanded-map-section-card {
+  width: 100%;
 }
 
 .issue-resolve-note { font-size: 0.7rem; color: var(--text-muted); align-self: center; }
