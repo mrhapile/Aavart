@@ -1,6 +1,6 @@
 # SIH26027 Hackathon Deviation Plan
 
-Sources: [SIH26027 Detailed Technical Architecture PDF](/Users/mrhapile/SIH/Aavart/SIH26027_Detailed_Technical_Architecture.pdf) and [Risk Review](/Users/mrhapile/SIH/Aavart/risk-review-and-hackathon-deviation.md).
+Sources: [SIH26027 Detailed Technical Architecture PDF](./SIH26027_Detailed_Technical_Architecture.pdf) and [Risk Review](./risk-review-and-hackathon-deviation.md).
 
 ## Alignment Split
 

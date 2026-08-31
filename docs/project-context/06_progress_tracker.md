@@ -28,7 +28,7 @@ This file is the working tracker for the team.
 | Sample data and fixtures | Aadi | done | The deterministic baseline drives backend and browser acceptance tests |
 | UI/assets polish | Mohit | done | Desktop/mobile planning desk and explicit run-state labels are implemented |
 | Demo script | Sakshi | done | The script matches synchronous planning and CSV export behavior |
-| RapidBlock extension | Akash | partial | Backend endpoints and guardrail tests exist; UI path remains Arnav-owned |
+| RapidBlock extension | Akash | done | Backend endpoints, guardrail tests, and the emergency UI (incident form, cascade impact, corridor map, live train lookup) are implemented |
 
 ## Completion criteria
 
@@ -42,17 +42,17 @@ The project is complete only when all of these are true:
 6. Export is blocked until a valid human-approved run exists.
 7. The demo script matches the actual runtime behavior and does not claim live railway sanctioning or validated ML.
 
-RapidBlock is optional. It is not required for completion of the mandatory demo, but it is still unfinished.
+RapidBlock is optional. It is not required for completion of the mandatory demo, and it is now implemented end to end.
 
 ## Verification record
 
-- Mandatory demo status: complete on 2026-08-29.
-- Backend: 20 tests passed; Ruff and strict mypy passed.
-- Frontend: typecheck, lint, unit test, and production build passed.
-- Browser: 2 Playwright tests passed; the guarded end-to-end workflow completed in about one second.
-- Contract: generated OpenAPI and TypeScript API schema are current.
+- Mandatory demo status: complete on 2026-08-29. Full audit re-run on 2026-08-31.
+- Backend: 49 tests passed; Ruff and strict mypy passed.
+- Frontend: typecheck, lint, 12 unit tests, and production build passed.
+- Browser: 32 Playwright tests passed across four specs (foundation, validation gate, failure modes, KPI honesty).
+- Contract: generated OpenAPI and TypeScript API schema are current (`make openapi` produces no diff).
 - Known limitation: default test mode still uses process-local memory. Durable demo mode requires `STORE_BACKEND=sql` and migrated Postgres.
-- Optional work not completed: RapidBlock UI surface, BlockReady, WeatherGuard, and monthly planning.
+- Optional work not completed: BlockReady, WeatherGuard, monthly planning as a separate optimiser, and an unlock endpoint.
 
 ## Working cycle
 

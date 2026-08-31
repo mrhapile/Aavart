@@ -183,7 +183,11 @@ test("export is blocked before approval and archive reopen loads the real backen
 
 test("backend outage during validation surfaces an error instead of fake progress", async ({ page }) => {
   await startPlan(page);
-  await page.route(`${apiUrl}/datasets/validate`, async (route) => {
+  // Match on path, not on the full origin: a reused dev server (a compose stack
+  // already on this port) bakes in a different NEXT_PUBLIC_API_URL host, and an
+  // origin-pinned pattern silently fails to intercept - the request succeeds and
+  // this test fails claiming the outage was not surfaced.
+  await page.route("**/datasets/validate", async (route) => {
     await route.abort();
   });
 

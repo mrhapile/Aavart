@@ -1,85 +1,33 @@
-# RailNiyojan Frontend Documentation
+# RailNiyojan Frontend — Design Record
 
-Welcome. This folder is the complete handover documentation for the RailNiyojan frontend.
+This folder is the **condensed design record** for the RailNiyojan planning desk UI: what we set out to build, the decisions we argued about, and how the shipped interface differs from the interface we first specified.
 
-A new frontend engineer should be able to read through these documents in order and begin implementation with minimal external clarification.
+It replaces an earlier 17-document, ~3,600-line pre-implementation specification. That spec did its job — it was written *before* the UI existed, to let frontend work start in parallel with the backend — and then the build taught us things the spec got wrong. Rather than keep a spec that no longer matches the code, we condensed it into five documents and kept the disagreements visible.
 
----
+| Document | What it holds |
+|---|---|
+| [01-product-and-users.md](./01-product-and-users.md) | The problem, the user, the domain vocabulary |
+| [02-design-decisions.md](./02-design-decisions.md) | The eight decisions that shaped the UI, with rationale |
+| [03-screens-and-states.md](./03-screens-and-states.md) | Every screen, flow, and state machine |
+| [04-api-contract-map.md](./04-api-contract-map.md) | Each UI action → its endpoint, guard, and failure path |
+| [05-spec-vs-shipped.md](./05-spec-vs-shipped.md) | What we planned, what shipped, what we cut and why |
 
-## What This Documentation Contains
-
-- The product domain, problem, and target user
-- The complete application state machine and user flows
-- Every screen's purpose, layout, data requirements, and interactions
-- The component system and its responsibilities
-- The frontend state model (server state vs. UI state vs. local state)
-- A full API mapping from every UI action to its backend endpoint, request, response, and state change
-- All loading, empty, error, and edge states
-- Interaction patterns (confirmations, modals, toasts, polling)
-- The emergency RapidBlock workflow in full detail
-- The Review Plan screen in full detail
-- Responsive behaviour (desktop-first)
-- Implementation roadmap and priority order
-- Open questions and known gaps
+Hand-drawn design artefacts from the Excalidraw sessions are in [`../reference/`](../reference/). They are the original source of the corridor-over-timeline layout and are worth looking at before reading 03.
 
 ---
 
-## Recommended Reading Order
+## The one-paragraph version
 
-| Step | Document | Why |
-|------|----------|-----|
-| 1 | [01-product-overview.md](./01-product-overview.md) | Understand what you are building and for whom |
-| 2 | [09-data-models.md](./09-data-models.md) | Understand the data before reading screens |
-| 3 | [03-user-flows.md](./03-user-flows.md) | Understand the full user journey |
-| 4 | [04-screen-specifications.md](./04-screen-specifications.md) | Understand every screen |
-| 5 | [07-backend-integration.md](./07-backend-integration.md) | Understand who is responsible for what |
-| 6 | [08-api-mapping.md](./08-api-mapping.md) | Understand every API call |
-| 7 | [10-review-plan.md](./10-review-plan.md) | The most important screen, read in full |
-| 8 | [11-rapid-blocking.md](./11-rapid-blocking.md) | The emergency workflow |
-| 9 | [06-ui-state-model.md](./06-ui-state-model.md) | Understand state management |
-| 10 | [05-component-system.md](./05-component-system.md) | Understand the component boundaries |
-| 11 | [02-frontend-architecture.md](./02-frontend-architecture.md) | Understand technology and patterns |
-| 12 | [12-loading-error-empty-states.md](./12-loading-error-empty-states.md) | Handle edge cases |
-| 13 | [13-interaction-patterns.md](./13-interaction-patterns.md) | Understand UX conventions |
-| 14 | [15-implementation-roadmap.md](./15-implementation-roadmap.md) | Start building in the right order |
-| 15 | [16-open-questions.md](./16-open-questions.md) | Know what is unresolved |
+RailNiyojan schedules railway maintenance across three departments that historically plan in isolation. The frontend's entire job is to make a constraint solver's output **reviewable by a human who is accountable for it**. That single framing produced every decision worth defending: the UI renders backend truth and never derives its own numbers; the solver's output is a *recommendation* that a named person signs; every disabled control explains itself; and no progress bar animates something the server is not actually doing.
 
 ---
 
-## All Documents
+## Why the design record reads the way it does
 
-| File | Topic |
-|------|-------|
-| [01-product-overview.md](./01-product-overview.md) | Product, domain, problem, user |
-| [02-frontend-architecture.md](./02-frontend-architecture.md) | Tech stack, patterns, state management |
-| [03-user-flows.md](./03-user-flows.md) | All user journeys with diagrams |
-| [04-screen-specifications.md](./04-screen-specifications.md) | Per-screen specs |
-| [05-component-system.md](./05-component-system.md) | Component responsibilities |
-| [06-ui-state-model.md](./06-ui-state-model.md) | State machines and state types |
-| [07-backend-integration.md](./07-backend-integration.md) | Frontend vs. backend responsibilities |
-| [08-api-mapping.md](./08-api-mapping.md) | UI action to API endpoint mapping |
-| [09-data-models.md](./09-data-models.md) | All data shapes used by the frontend |
-| [10-review-plan.md](./10-review-plan.md) | Detailed Review Plan screen |
-| [11-rapid-blocking.md](./11-rapid-blocking.md) | Emergency RapidBlock workflow |
-| [12-loading-error-empty-states.md](./12-loading-error-empty-states.md) | All non-happy-path states |
-| [13-interaction-patterns.md](./13-interaction-patterns.md) | Buttons, modals, toasts, confirmations |
-| [14-responsive-behaviour.md](./14-responsive-behaviour.md) | Layout at different screen sizes |
-| [15-implementation-roadmap.md](./15-implementation-roadmap.md) | Build order and dependencies |
-| [16-open-questions.md](./16-open-questions.md) | Unresolved items and assumptions |
-| [diagrams/application-flow.md](./diagrams/application-flow.md) | Full app state machine |
-| [diagrams/plan-lifecycle.md](./diagrams/plan-lifecycle.md) | Plan state transitions |
-| [diagrams/review-plan-state-machine.md](./diagrams/review-plan-state-machine.md) | Review Plan interactions |
-| [diagrams/rapid-blocking-flow.md](./diagrams/rapid-blocking-flow.md) | RapidBlock workflow |
+Three conventions we held to, because they are what made the spec useful rather than decorative:
 
----
+**Uncertainty was written down, not smoothed over.** The original spec carried a dedicated open-questions document listing every missing endpoint and every assumption. Six gaps were named there before a line of the review screen was written. Four were later closed by backend work that the spec itself provoked — that traceable arc is preserved in [05-spec-vs-shipped.md](./05-spec-vs-shipped.md).
 
-## Key Architectural Facts (Quick Reference)
+**Ownership boundaries were explicit.** The frontend/backend split in [02](./02-design-decisions.md) is not a style preference. In a system that recommends taking railway track out of service, "who owns this number" is a safety question, and we answered it per-field.
 
-- **Framework**: Next.js (App Router), React, TypeScript — already established in `apps/web`
-- **Backend**: FastAPI at `http://localhost:8000` (configured via `NEXT_PUBLIC_API_URL`)
-- **API client**: Already exists at `apps/web/src/lib/api.ts` — do not reinvent it
-- **Existing dashboard**: `apps/web/src/app/planner-dashboard.tsx` — a functional prototype, NOT the target design
-- **RapidBlock is backend-complete**: `POST /rapidblock-requests` and `GET /rapidblock-requests/{id}` exist and are tested
-- **Export is gated**: The backend enforces `export_ready = (approved AND feasible AND validator_passed)`
-- **Lock requires replan**: Locking a job does NOT re-optimize automatically. A separate `POST /{run_id}/replan` call is needed.
-- **Replan creates a new run**: Replan returns a new `run_id`. The UI must track the latest active run.
+**The spec was allowed to be wrong.** Where the build contradicted the plan, the shipped code won and the document was corrected. Several confident recommendations in the original spec — a routing structure, a server-state library, a four-action job panel — did not survive contact with the implementation. They are recorded as reversals rather than quietly deleted.
